@@ -29,7 +29,7 @@ else
 fi
 
 echo "[1/4] Backup source project..."
-tar --exclude='.git' --exclude='./backups' --exclude='backups' -czf "$OUT_DIR/project-files.tar.gz" -C "$PROJECT_ROOT" .
+tar --exclude='.git' -czf "$OUT_DIR/project-files.tar.gz" -C "$PROJECT_ROOT" .
 
 echo "[2/4] Backup postgres schema..."
 pg_dump "${DB_CONNECT[@]}" --schema-only --no-owner --no-privileges > "$OUT_DIR/db-schema.sql"
