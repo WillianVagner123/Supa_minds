@@ -10,6 +10,12 @@ const keepBuckets = (process.env.STORAGE_KEEP_BUCKETS ?? 'avatars,profiles,priva
   .filter(Boolean)
 
 if (!url || !serviceRole) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+if (!Number.isFinite(olderThanDays) || olderThanDays < 0) {
+  throw new Error('STORAGE_OLDER_THAN_DAYS must be a non-negative number')
+}
+if (!Number.isFinite(minBytes) || minBytes < 0) {
+  throw new Error('STORAGE_MIN_BYTES must be a non-negative number')
+}
 
 const supabase = createClient(url, serviceRole)
 
@@ -23,27 +29,40 @@ async function main() {
   for (const bucket of buckets ?? []) {
     if (keepBuckets.includes(bucket.name)) continue
 
-    let offset = 0
-    const limit = 100
-    while (true) {
-      const { data: files, error } = await supabase.storage.from(bucket.name).list('', {
-        limit,
-        offset,
-        sortBy: { column: 'created_at', order: 'asc' },
-      })
-      if (error) throw error
-      if (!files || files.length === 0) break
+    const prefixes = ['']
+    while (prefixes.length > 0) {
+      const prefix = prefixes.shift() ?? ''
+      let offset = 0
+      const limit = 100
 
-      for (const f of files) {
-        const createdAt = f.created_at ? new Date(f.created_at) : undefined
-        const size = Number((f.metadata as any)?.size ?? 0)
-        if (createdAt && createdAt < cutoff && size >= minBytes) {
-          report.push({ bucket: bucket.name, name: f.name, created_at: f.created_at, size })
+      while (true) {
+        const { data: files, error } = await supabase.storage.from(bucket.name).list(prefix, {
+          limit,
+          offset,
+          sortBy: { column: 'created_at', order: 'asc' },
+        })
+        if (error) throw error
+        if (!files || files.length === 0) break
+
+        for (const f of files) {
+          const entryPath = prefix ? `${prefix}/${f.name}` : f.name
+
+          // Supabase list() returns directories with null metadata.
+          if (!f.metadata) {
+            prefixes.push(entryPath)
+            continue
+          }
+
+          const createdAt = f.created_at ? new Date(f.created_at) : undefined
+          const size = Number((f.metadata as any).size ?? 0)
+          if (createdAt && createdAt < cutoff && size >= minBytes) {
+            report.push({ bucket: bucket.name, name: entryPath, created_at: f.created_at, size })
+          }
         }
-      }
 
-      if (files.length < limit) break
-      offset += limit
+        if (files.length < limit) break
+        offset += limit
+      }
     }
   }
 

@@ -14,9 +14,15 @@ async function main() {
   if (!planRaw) throw new Error('Missing STORAGE_DELETE_PLAN_JSON (output from dry-run, filtered manually)')
 
   const plan: Array<{ bucket: string; name: string }> = JSON.parse(planRaw)
+  if (!Array.isArray(plan)) {
+    throw new Error('STORAGE_DELETE_PLAN_JSON must be a JSON array')
+  }
 
   const grouped = new Map<string, string[]>()
   for (const item of plan) {
+    if (!item || typeof item.bucket !== 'string' || typeof item.name !== 'string') {
+      throw new Error('Each plan item must contain string fields: bucket and name')
+    }
     if (!grouped.has(item.bucket)) grouped.set(item.bucket, [])
     grouped.get(item.bucket)!.push(item.name)
   }
