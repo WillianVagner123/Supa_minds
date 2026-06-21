@@ -1,0 +1,2 @@
+-- Gere as views completas com: supabase db pull
+-- (40+ views; o db pull é a fonte canônica e evita erros de transcrição)

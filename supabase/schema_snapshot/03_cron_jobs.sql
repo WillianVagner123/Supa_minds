@@ -1,0 +1,19 @@
+-- Referência dos cron jobs ativos (pg_cron). Reaplicáveis via cron.schedule.
+-- DISPARO
+-- minds-plan-enqueue-every-15min  */15 * * * *  select public.minds_cron_plan_and_enqueue();
+-- minds-dispatcher-every-15min    */10 * * * *  select public.minds_call_questionnaire_dispatcher(10);
+-- minds-weekday-adherence-reporter-21h  0 0 * * 2-6  select public.minds_call_adherence_reporter();  -- 21h BRT seg-sex
+-- minds-queue-reactivation-weekly  30 12 * * 1  select public.minds_queue_reactivation_attempts(25,'minds_reactivation_v1');
+-- AUTOMAÇÃO (auto-cura/monitor)
+-- minds-self-heal      */15 * * * *  select public.minds_self_heal();
+-- minds-health-check   */30 * * * *  select public.minds_health_check();
+-- PINGO reativação (standby)
+-- pingo-reactivation-drip       */30 * * * *  select public.run_pingo_reactivation_tick();
+-- pingo-reactivation-reconcile  */30 * * * *  select public.reconcile_pingo_reactivation_responses();
+-- LIMPEZA (madrugada BRT)
+-- cleanup-cron-job-run-details  0 3 * * *
+-- cleanup-net-http-response     20 3 * * *  (3 dias)
+-- cleanup-integration-outbox    30 3 * * *  (2 dias)
+-- cleanup-minds-webhook-queue   40 3 * * *  (7 dias)
+-- cleanup-planned-superseded    50 3 * * *  (2 dias)
+-- cleanup-self-heal-logs        15 3 * * *  (14 dias)
