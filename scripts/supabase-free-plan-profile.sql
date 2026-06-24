@@ -181,19 +181,24 @@ end
 $block$;
 
 -- 3) Verification
-select jobid, jobname, schedule, active
-from cron.job
-where maintenance.table_exists('cron', 'job')
-  and jobname in (
-    'cleanup-cron-job-run-details',
-    'cleanup-net-http-response',
-    'cleanup-integration-outbox',
-    'cleanup-minds-webhook-queue'
-  )
-order by jobname;
+do $block$
+begin
+  if maintenance.table_exists('cron', 'job') then
+    raise notice 'cron.job exists. Run the verification query below:';
+    raise notice '%',
+      'select jobid, jobname, schedule, active from cron.job '
+      || 'where jobname in (''cleanup-cron-job-run-details'',''cleanup-net-http-response'',''cleanup-integration-outbox'',''cleanup-minds-webhook-queue'') '
+      || 'order by jobname;';
+  else
+    raise notice 'cron.job does not exist in this environment. Skipping job listing query.';
+  end if;
 
-select count(*) as cron_history_rows,
-       min(start_time) as oldest,
-       max(start_time) as newest
-from cron.job_run_details
-where maintenance.table_exists('cron', 'job_run_details');
+  if maintenance.table_exists('cron', 'job_run_details') then
+    raise notice 'cron.job_run_details exists. Run the verification query below:';
+    raise notice '%',
+      'select count(*) as cron_history_rows, min(start_time) as oldest, max(start_time) as newest from cron.job_run_details;';
+  else
+    raise notice 'cron.job_run_details does not exist in this environment. Skipping history stats query.';
+  end if;
+end
+$block$;
